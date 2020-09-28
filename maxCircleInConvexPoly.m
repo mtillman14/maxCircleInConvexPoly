@@ -18,9 +18,9 @@ function [maxRad,maxRadOrigin]=maxCircleInConvexPoly(xPoly,yPoly,shrinkage)
 % maxRadOrigin=(x,y) origin of largest possible circle in convex polygon.
 
 %% Specify plotting preferences.
-plotRotOn=1; % Change to 1 to plot rotated polygon, otherwise 0.
+plotRotOn=0; % Change to 1 to plot rotated polygon, otherwise 0.
 plotOrigOn=0; % Change to 1 to plot original polygon, otherwise 0.
-plotPrevBals=1; % Change to 1 to plot circles prior to largest, otherwise 0.
+plotPrevBals=0; % Change to 1 to plot circles prior to largest, otherwise 0.
 
 %% 1. Compute the boundary of the points.
 if size(xPoly,1)<size(xPoly,2)
@@ -292,10 +292,10 @@ while a==0
     
 end
 
-disp(maxRad);
+% disp(maxRad);
 
 %% 11. Plot de-rotated location.
-disp(maxRadOrigin);
+% disp(maxRadOrigin);
 if plotOrigOn==1
     scatter(maxRadOrigin(1),maxRadOrigin(2),'k*');
     xunFin=perpDist{balloonNum-1}*cos(th)+maxRadOrigin(1); % 1st side circle
