@@ -20,7 +20,7 @@ function [maxRad,maxRadOrigin]=maxCircleInConvexPoly(xPoly,yPoly,shrinkage)
 %% Specify plotting preferences.
 plotRotOn=0; % Change to 1 to plot rotated polygon, otherwise 0.
 plotOrigOn=0; % Change to 1 to plot original polygon, otherwise 0.
-plotPrevBals=0; % Change to 1 to plot circles prior to largest, otherwise 0.
+plotPrevBals=0; % Change to 1 to plot circles prior to largest, otherwise 0. Must also have plotRotOn or plotOrigOn set to 1
 
 %% 1. Compute the boundary of the points.
 if size(xPoly,1)<size(xPoly,2)
@@ -231,6 +231,11 @@ while a==0
     %% 11. Find where the two newly selected sides intersect (to create bisect vector).
     %     newCloseSides{balloonNum}=sort(newCloseSides{balloonNum});
     [newVert{balloonNum}(1),newVert{balloonNum}(2)]=SideVertFind(rotPoly,newCloseSides(balloonNum-1,1),newCloseSides(balloonNum-1,2));
+    if isequal([Inf Inf],abs(newVert{balloonNum}))
+        maxRad=perpDist{balloonNum-1};
+        maxRadOrigin=Rback*newPoint{balloonNum-1}';
+        break;
+    end
     %     scatter(newVert{balloonNum}(1),newVert{balloonNum}(2),'m*');
     newBisectVect{balloonNum}=(newPoint{balloonNum}-newVert{balloonNum})/norm(newPoint{balloonNum}-newVert{balloonNum}); % Unit vector.
     
@@ -272,7 +277,8 @@ while a==0
             break;
         else % No new side is hit
             % Current sides are parallel.
-            if isequal(sideThetas(newCloseSides(balloonNum-1,1)),sideThetas(newCloseSides(balloonNum-1,2)))
+            if isequal(sideThetas(newCloseSides(balloonNum-1,1)),sideThetas(newCloseSides(balloonNum-1,2))) ...
+                    || isequal(round(abs(sideThetas(newCloseSides(balloonNum-1,1)))+abs(sideThetas(newCloseSides(balloonNum-1,2)))),180)
                 maxRad=perpDist{balloonNum-1};
                 maxRadOrigin=Rback*newPoint{balloonNum-1}';
                 return;
@@ -301,6 +307,10 @@ if plotOrigOn==1
     xunFin=perpDist{balloonNum-1}*cos(th)+maxRadOrigin(1); % 1st side circle
     yunFin=perpDist{balloonNum-1}*sin(th)+maxRadOrigin(2);
     plot(xunFin,yunFin,'k*');
+end
+
+if plotOrigOn==1 || plotRotOn==1
+    close(Q);
 end
 
 end
