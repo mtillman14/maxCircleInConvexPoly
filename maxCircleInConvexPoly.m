@@ -76,11 +76,12 @@ for sideNum=1:numSides
 end
 
 %% 4. Rotate the convex hull (such that the first side of widest angle is on x ais).
-if isequal(angleThetas(1)*ones(size(angleThetas)),angleThetas)
+if isequal(angleThetas(1)*ones(size(angleThetas)),angleThetas) % If all the interior angles are the same.
     maxAngleTheta=angleThetas(1);
     thetaIdx=1;
-else
-    [maxAngleTheta,thetaIdx]=max(angleThetas); % e.g. angleNum=3 means between side 3 & 4. angleNum=5 means between side 5 & 1.
+else % If there is a maximum.
+    [maxAngleTheta,~]=max(angleThetas(angleThetas<180 & angleThetas>0)); % e.g. angleNum=3 means between side 3 & 4. angleNum=5 means between side 5 & 1.
+    thetaIdx=find(angleThetas==maxAngleTheta,1);
 end
 theta=-1*sideThetas(thetaIdx); % Amount to rotate.
 R = [cosd(theta) -sind(theta); sind(theta) cosd(theta)]; % Rotation matrix.
@@ -118,25 +119,73 @@ end
 balloonNum=1;
 
 % Rotated polygon, starting from vertex point of widest angle.
-initVert=rotPoly(thetaIdx+1,:); % Vertex of widest angle.
+initVert=rotPoly(thetaIdx+1,:); % Vertex of widest angle. Is thetaIdx never the last value? 
 
 %% 7. Create bisecting vector from vertex to arbitrary initial interior point.
 initDist=0.3*min(sideLengths); % Hypotenuse (distance)
+% NEED TO AVOID INITIALIZING THE LENGTH OF THE BISECTING VECTOR SO LONG THAT THE INITIAL POINT IS OUTSIDE OF THE POLYGON.
 
 % % Rotated polygon. Half the widest angle (from horizontal to angle of next side).
-halfTheta=180-maxAngleTheta/2;
-if abs(halfTheta)>90 % Need to invert the triangle to determine point coordinates.
-    triTheta=180-halfTheta;
-    xDist=-1*cosd(triTheta)*initDist;
-else % Don't need to invert the triangle to determine point coordinates.
-    triTheta=halfTheta;
-    xDist=cosd(triTheta)*initDist;
+halfTheta=180-maxAngleTheta/2; % Angle (degrees) from positive x axis for bisecting vector.
+xDir=cosd(halfTheta); % Negative if > 90 degrees. Is the X component of initial bisecting vector
+yDir=sind(halfTheta); % Y component of initial bisecting vector.
+% if abs(halfTheta)>90 % Need to invert the triangle to determine point coordinates. (bisecting vector in 2nd quadrant)
+%     triTheta=180-halfTheta;
+%     xDist=-1*cosd(triTheta)*initDist;
+% else % Don't need to invert the triangle to determine point coordinates. (bisecting vector in quadrant 1)
+%     triTheta=halfTheta;
+%     xDist=cosd(triTheta)*initDist;
+% end
+% m1=yDir/xDir; % Slope of the bisecting vector
+% For m2, need to ensure it's not one of the sides containing the initVert.
+% corner1=rotPoly(rotPoly(:,1)==min(rotPoly(:,1)),1:2);
+% corner1=corner1(1,:); % If point is doubled up, only take the first one.
+% corner2=rotPoly(rotPoly(:,2)==max(rotPoly(:,2)),1:2);
+% corner2=corner2(1,:); % If point is doubled up, only take the first one.
+% if thetaIdx>1
+%     cornerNumToUse=thetaIdx-1; % To get the m2 slope. This is just any side that is not one of the existing sides of the initVert.
+% else
+%     cornerNumToUse=size(rotPoly,1); % To get the m2 slope. This is just any side that is not one of the existing sides of the initVert.
+% end
+% if cornerNumToUse>1
+%     cornerNum2ToUse=cornerNumToUse-1;
+% else
+%    cornerNum2ToUse=size(rotPoly,1)-1; 
+% end
+% meanCorners=mean([corner1; corner2],1);
+% m2=(corner2(2)-corner1(2))/(corner2(1)-corner1(1)); % May not align with existing sides.
+% b1=initVert(2)-m1*initVert(1); % Y-intercept of bisecting vector.
+% b2=corner1(2)-m2*corner1(1); % Y-intercept of side 2.
+% bothSlopes=(m1-m2); % 1 - 2. X's on left side.
+% bothBs=(b2-b1); % 2 - 1. B's on R side.
+
+% commX=bothBs/bothSlopes; % X value of side intersections.
+% commY=m1*(commX)+b1; % Y value of side intersections.
+if thetaIdx<size(rotPoly,1)-1 % Get the two sides of the initVert.
+    initCloseSideNums=[thetaIdx thetaIdx+1];    
+else
+    initCloseSideNums=[1 thetaIdx];
 end
-yDist=sind(triTheta)*initDist;
-initPoint=initVert+[xDist yDist];
+in=0; iterNum=0;
+while in==0 % Checks to see if the initial point is inside or outside of the polygon.
+    iterNum=iterNum+1;
+%     initPoint=initVert+[xDir yDir]*initDist*norm([commX commY]-initVert);
+    initPoint=initVert+[xDir yDir]*initDist;
+    [in,on]=inpolygon(initPoint(1),initPoint(2),rotPoly(:,1),rotPoly(:,2));
+    if ~in || on % Not inside, or is hitting the boundary line.
+        initDist=initDist/2; % Keeps shrinking the scaling factor until
+    else
+        [~,closestSideNum]=findClosestSide(rotPoly,initPoint(1),initPoint(2));
+        if ~ismember(closestSideNum,initCloseSideNums) % Ensures that the initial point is closer to the sides of its vertex than other sides (with sharp triangles).
+            in=0;
+            initDist=initDist/2;
+        end
+    end
+end
+% initPoint=initVert+(meanCorners-initVert)/2;
 bisectVect{balloonNum}=initPoint-initVert; % From vertex to interior point.
 
-th=0:pi/50:2*pi;
+th=0:pi/50:2*pi; % Creates a circle for plotting.
 if plotPrevBals==1 || plotRotOn==1
     [dist1,~]=findClosestSide(rotPoly,initPoint(1),initPoint(2));
     xun{balloonNum}=dist1*cos(th)+initPoint(1); % 1st side circle
@@ -161,11 +210,8 @@ end
 newPoint{balloonNum}=initPoint;
 iterNum=0;
 
-if thetaIdx<size(rotPoly,1)-1
-    initCloseSideNums=[thetaIdx thetaIdx+1];
-else
-    initCloseSideNums=[1 thetaIdx];
-end
+% [~,initCloseSideNums(1),initCloseSideNums(2)]=findClosestSide(rotPoly,newPoint{balloonNum}(1),newPoint{balloonNum}(2));
+
 a=0;
 scaleFactor=0.001*min(sideLengths);
 while a==0
@@ -213,6 +259,10 @@ if rotSlopes(newCloseSideNum{balloonNum})>0 || isequal(abs(rotSlopes(newCloseSid
 elseif rotSlopes(newCloseSideNum{balloonNum})<0
     % Use first side (slope=0).
     newCloseSides(1:balloonNum+1)=[initCloseSideNums(1) newCloseSideNum{balloonNum}];
+elseif isequal(rotSlopes(newCloseSideNum{balloonNum}),0)
+    maxRadOrigin=Rback*newPoint{balloonNum}';
+    maxRad=perpDist{balloonNum};
+    return;
 end
 
 %% 10. While loop to iterate through balloons.
@@ -231,12 +281,12 @@ while a==0
     %% 11. Find where the two newly selected sides intersect (to create bisect vector).
     %     newCloseSides{balloonNum}=sort(newCloseSides{balloonNum});
     [newVert{balloonNum}(1),newVert{balloonNum}(2)]=SideVertFind(rotPoly,newCloseSides(balloonNum-1,1),newCloseSides(balloonNum-1,2));
-    if isequal([Inf Inf],abs(newVert{balloonNum}))
+    if isequal([Inf Inf],abs(newVert{balloonNum})) || any(isnan(newVert{balloonNum}))
         maxRad=perpDist{balloonNum-1};
         maxRadOrigin=Rback*newPoint{balloonNum-1}';
         break;
     end
-    %     scatter(newVert{balloonNum}(1),newVert{balloonNum}(2),'m*');
+    
     newBisectVect{balloonNum}=(newPoint{balloonNum}-newVert{balloonNum})/norm(newPoint{balloonNum}-newVert{balloonNum}); % Unit vector.
     
     %% 12. Find next closest side.
