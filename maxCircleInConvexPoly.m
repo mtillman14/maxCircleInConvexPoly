@@ -22,6 +22,11 @@ plotRotOn=0; % Change to 1 to plot rotated polygon, otherwise 0.
 plotOrigOn=0; % Change to 1 to plot original polygon, otherwise 0.
 plotPrevBals=0; % Change to 1 to plot circles prior to largest, otherwise 0. Must also have plotRotOn or plotOrigOn set to 1
 
+if any(isnan(xPoly),'all') || any(isnan(yPoly),'all')
+    maxRad=NaN;
+    maxRadOrigin=[NaN NaN];
+end
+
 %% 1. Compute the boundary of the points.
 if size(xPoly,1)<size(xPoly,2)
     xPoly=xPoly'; % Make column vector
@@ -129,38 +134,7 @@ initDist=0.3*min(sideLengths); % Hypotenuse (distance)
 halfTheta=180-maxAngleTheta/2; % Angle (degrees) from positive x axis for bisecting vector.
 xDir=cosd(halfTheta); % Negative if > 90 degrees. Is the X component of initial bisecting vector
 yDir=sind(halfTheta); % Y component of initial bisecting vector.
-% if abs(halfTheta)>90 % Need to invert the triangle to determine point coordinates. (bisecting vector in 2nd quadrant)
-%     triTheta=180-halfTheta;
-%     xDist=-1*cosd(triTheta)*initDist;
-% else % Don't need to invert the triangle to determine point coordinates. (bisecting vector in quadrant 1)
-%     triTheta=halfTheta;
-%     xDist=cosd(triTheta)*initDist;
-% end
-% m1=yDir/xDir; % Slope of the bisecting vector
-% For m2, need to ensure it's not one of the sides containing the initVert.
-% corner1=rotPoly(rotPoly(:,1)==min(rotPoly(:,1)),1:2);
-% corner1=corner1(1,:); % If point is doubled up, only take the first one.
-% corner2=rotPoly(rotPoly(:,2)==max(rotPoly(:,2)),1:2);
-% corner2=corner2(1,:); % If point is doubled up, only take the first one.
-% if thetaIdx>1
-%     cornerNumToUse=thetaIdx-1; % To get the m2 slope. This is just any side that is not one of the existing sides of the initVert.
-% else
-%     cornerNumToUse=size(rotPoly,1); % To get the m2 slope. This is just any side that is not one of the existing sides of the initVert.
-% end
-% if cornerNumToUse>1
-%     cornerNum2ToUse=cornerNumToUse-1;
-% else
-%    cornerNum2ToUse=size(rotPoly,1)-1; 
-% end
-% meanCorners=mean([corner1; corner2],1);
-% m2=(corner2(2)-corner1(2))/(corner2(1)-corner1(1)); % May not align with existing sides.
-% b1=initVert(2)-m1*initVert(1); % Y-intercept of bisecting vector.
-% b2=corner1(2)-m2*corner1(1); % Y-intercept of side 2.
-% bothSlopes=(m1-m2); % 1 - 2. X's on left side.
-% bothBs=(b2-b1); % 2 - 1. B's on R side.
 
-% commX=bothBs/bothSlopes; % X value of side intersections.
-% commY=m1*(commX)+b1; % Y value of side intersections.
 if thetaIdx<size(rotPoly,1)-1 % Get the two sides of the initVert.
     initCloseSideNums=[thetaIdx thetaIdx+1];    
 else
@@ -182,7 +156,7 @@ while in==0 % Checks to see if the initial point is inside or outside of the pol
         end
     end
 end
-% initPoint=initVert+(meanCorners-initVert)/2;
+
 bisectVect{balloonNum}=initPoint-initVert; % From vertex to interior point.
 
 th=0:pi/50:2*pi; % Creates a circle for plotting.
@@ -209,8 +183,6 @@ end
 %% 8. Increment along bisecting vector until the next closest side is hit.
 newPoint{balloonNum}=initPoint;
 iterNum=0;
-
-% [~,initCloseSideNums(1),initCloseSideNums(2)]=findClosestSide(rotPoly,newPoint{balloonNum}(1),newPoint{balloonNum}(2));
 
 a=0;
 scaleFactor=0.001*min(sideLengths);
@@ -348,10 +320,7 @@ while a==0
     
 end
 
-% disp(maxRad);
-
 %% 11. Plot de-rotated location.
-% disp(maxRadOrigin);
 if plotOrigOn==1
     scatter(maxRadOrigin(1),maxRadOrigin(2),'k*');
     xunFin=perpDist{balloonNum-1}*cos(th)+maxRadOrigin(1); % 1st side circle
@@ -369,7 +338,6 @@ function [minDist,closestSideNum]=findClosestSide(rotPoly,xP,yP)
 % Returns the side number of the closest side to an interior point of convex hull.
 x=[xP yP];
 for aa=1:size(rotPoly,1)-1 % Iterate through points.
-    %     sides(a,1:2)=rotPoly(a+1,:)-rotPoly(a,:);
     a=rotPoly(aa,:);
     b=rotPoly(aa+1,:);
     
