@@ -185,9 +185,26 @@ newPoint{balloonNum}=initPoint;
 iterNum=0;
 
 a=0;
-scaleFactor=0.001*min(sideLengths);
+origScaleFactor=0.001*min(sideLengths);
+scaleFactor=origScaleFactor;
+scaleUpCount=1; % Helps to speed along the process of finding the next side in case of vastly unequal side lengths.
 while a==0
     iterNum=iterNum+1;
+    if iterNum==1000
+%         disp(['Finding balloon ' num2str(balloonNum) ': taking a sec']);
+    elseif iterNum==10000
+        disp(['Finding balloon ' num2str(balloonNum) ': taking a bit']);
+    elseif iterNum==100000
+        disp(['Finding balloon ' num2str(balloonNum) ': taking longer']);
+    elseif iterNum==1000000
+        disp('Should probably stop maxCircleInConvexPoly');
+    end
+    if iterNum>=10000
+        if mod(iterNum,2500)==0 && norm(newPoint{balloonNum}-initPoint)<max(sideLengths)/100
+            scaleUpCount=scaleUpCount+1;
+            scaleFactor=origScaleFactor*(10^scaleUpCount);
+        end
+    end
     newPoint{balloonNum}=newPoint{balloonNum}+bisectVect{balloonNum}*iterNum*scaleFactor; % Move the interior point along the bisecting vector.
     
     [perpDist{balloonNum},newCloseSideNum{balloonNum}]=findClosestSide(rotPoly,newPoint{balloonNum}(1),newPoint{balloonNum}(2));
@@ -216,6 +233,7 @@ while a==0
             maxRad=perpDist{balloonNum};
             return;
         end
+%         disp(['Balloon ' num2str(balloonNum) ' found in ' num2str(iterNum) ' Iterations']);
         break;
     end
     
@@ -262,9 +280,26 @@ while a==0
     newBisectVect{balloonNum}=(newPoint{balloonNum}-newVert{balloonNum})/norm(newPoint{balloonNum}-newVert{balloonNum}); % Unit vector.
     
     %% 12. Find next closest side.
-    iterNum=0;
+    iterNum=0;    
+    scaleFactor=origScaleFactor; % Reset the scale factor to the original value.
+    scaleUpCount=1; % Reset the scaling up to its original value.
     while a==0
         iterNum=iterNum+1;
+        if iterNum==1000
+%             disp(['Finding balloon ' num2str(balloonNum) ': taking a sec']);
+        elseif iterNum==10000
+            disp(['Finding balloon ' num2str(balloonNum) ': taking a bit']);
+        elseif iterNum==100000
+            disp(['Finding balloon ' num2str(balloonNum) ': taking longer']);
+        elseif iterNum==1000000
+            disp('Should probably stop maxCircleInConvexPoly');
+        end
+        if iterNum>=10000
+            if mod(iterNum,2500)==0 && norm(newPoint{balloonNum}-newPoint{balloonNum-1})<max(sideLengths)/100
+                scaleUpCount=scaleUpCount+1;
+                scaleFactor=origScaleFactor*(10^scaleUpCount);
+            end
+        end
         newPoint{balloonNum}=newPoint{balloonNum}+newBisectVect{balloonNum}*iterNum*scaleFactor; % Move the interior point along the bisecting vector.
         
         [perpDist{balloonNum},newCloseSideNum{balloonNum}]=findClosestSide(rotPoly,newPoint{balloonNum}(1),newPoint{balloonNum}(2));
@@ -296,6 +331,7 @@ while a==0
             newCloseSides(balloonNum,1)=newCloseSides(balloonNum-1,2);
             newCloseSides(balloonNum,2)=newCloseSideNum{balloonNum};
             % If two newest sides are parallel, stop all execution here.
+%             disp(['Balloon ' num2str(balloonNum) ' found in ' num2str(iterNum) ' Iterations']);
             break;
         else % No new side is hit
             % Current sides are parallel.
@@ -315,6 +351,7 @@ while a==0
             scatter(newPoint{balloonNum-1}(1),newPoint{balloonNum-1}(2),'b*');
             plot(xun{balloonNum-1},yun{balloonNum-1},'b*');
         end
+%         disp(['Largest balloon is #' num2str(balloonNum-1)]);
         break;
     end
     
